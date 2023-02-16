@@ -21,10 +21,13 @@ typedef struct Parametre{
 }Parametre;
 
 
-typedef struct User{
-	int socketCLient;
+
+typedef struct User User;
+struct User{
+	int socketClient;
 	struct sockaddr_in *sockin;
-}User;
+	User *suivant;
+};
 
 Parametre parametrage(int nbArgs, char *args[]){
 
@@ -32,7 +35,8 @@ Parametre parametrage(int nbArgs, char *args[]){
 	Parametre parametre;
 	parametre.PORT = 5000;
 	parametre.dimensions = (int*) calloc(2, sizeof(int));
-	for(int i; i<2; i++) parametre.dimensions[i] = 20;
+	parametre.dimensions[0] = 80;
+	parametre.dimensions[1] = 40;
 	
 	if(nbArgs > 5){
 		printf("la ligne de commande contient trop de paramètres\n");
@@ -59,6 +63,27 @@ Parametre parametrage(int nbArgs, char *args[]){
 	return parametre;
 }
 
+
+User *ajout_Client(User *liste, int socketEcoute, socklen_t *address_len){
+	struct sockaddr_in pointDeRencontreDistant;
+
+	User *client_suivant = NULL;
+	client_suivant = malloc(sizeof(User));
+	client_suivant->suivant = NULL;
+	client_suivant->socketClient = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, address_len);
+	client_suivant->sockin = &pointDeRencontreDistant;
+	
+	
+	if(liste == NULL) liste = client_suivant;
+	else{
+		User *parcour = liste;
+		while(parcour != NULL) parcour = parcour->suivant;
+		parcour = client_suivant;
+	
+	}
+	return liste;
+}
+
 int main(int nbArgs, char *args[]){
 	
 	/*recupère les paramètres pour initialiser le serveur*/
@@ -68,11 +93,12 @@ int main(int nbArgs, char *args[]){
 	printf("%d\n", parametres.dimensions[0]);
 	/*--------------------------------------------------*/
 	
+	User *tete_liste = NULL;
+	
 	int socketEcoute;
 	struct sockaddr_in pointDeRencontreLocal;
 	socklen_t longueurAdresse;
-	int socketDialogue;
-	struct sockaddr_in pointDeRencontreDistant;
+
 	char messageEnvoi[LG_MESSAGE]; /* le message de la couche Application ! */
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	int ecrits, lus; /* nb d’octets ecrits et lus */
@@ -132,36 +158,42 @@ int main(int nbArgs, char *args[]){
 		/*----------------------------poll---------------------------------------------------------*/
 		if( poll(&poll_accept, 1, 100) == 1){
 		
-			socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
-			if (socketDialogue < 0)
+			//socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
+			tete_liste = ajout_Client(tete_liste, socketEcoute, &longueurAdresse);
+			
+			User *parcour = tete_liste;
+			while(parcour->suivant != NULL) parcour = parcour->suivant;
+			
+			if (parcour->socketClient < 0)
 			{
 				perror("accept");
-				close(socketDialogue);
+				close(parcour->socketClient);
 				close(socketEcoute);
 				exit(-4);
 			}
 			// On réceptionne les données du client et on affiche ses informations
-			printf("Connection client de : %s:%d\n", inet_ntoa(pointDeRencontreDistant.sin_addr),ntohs(pointDeRencontreDistant.sin_port));
+			printf("Connection client de : %s:%d\n", inet_ntoa(parcour->sockin->sin_addr),ntohs(parcour->sockin->sin_port));
+			free(parcour);
 			
 		}
 		
-		/*creation d'un pollfd pour la reception de message de clients*/
+		/*creation d'un pollfd pour la reception de message de clients
 		struct pollfd poll_message;
 		memset(&poll_message, 0, sizeof(poll_message));
 		poll_message.fd = socketDialogue;
 		poll_message.events = POLLIN; 
-		/*------------------------------------------------------*/
+		/------------------------------------------------------*/
 		
-		
+		/*
 		if(poll(&poll_message, 1, 100) == 1){			
 			lus = read(socketDialogue, messageRecu, LG_MESSAGE*sizeof(char)); // ici appel bloquant
 			switch(lus)
 			{
-				case -1 : /* une erreur ! */
+				case -1 : // une erreur ! 
 					perror("read");
 					close(socketDialogue);
 					exit(-5);
-				case 0 : /* la socket est fermée */
+				case 0 : // la socket est fermée 
 					fprintf(stderr, "La socket a été fermée par le client !\n\n");
 					close(socketDialogue);
 					return 0;
@@ -173,25 +205,25 @@ int main(int nbArgs, char *args[]){
 			ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
 			switch(ecrits)
 			{
-				case -1 : /* une erreur ! */
+				case -1 : // une erreur ! 
 					perror("write");
 					close(socketDialogue);
 					
 					exit(-6);
-				case 0 : /* la socket est fermée */
+				case 0 : // la socket est fermée 
 					fprintf(stderr, "La socket a été fermée par le client !\n\n");
 					close(socketDialogue);
 					return 0;
-				default: /* envoi de n octets */
+				default: // envoi de n octets 
 					printf("Message %s envoyé (%d octets)\n\n", messageEnvoi, ecrits);
 			}			
-		}
+		}*/
 		/*-----------------------------------------------------------------------------------*/
 		
 		// On ferme la socket de dialogue et on se replace en attente ..
 		//close(socketDialogue); //pas forcement 
 	//else printf("test\n");
 	}
-	close(socketEcoute);
+	//close(socketEcoute);
 	return 0;
 }
