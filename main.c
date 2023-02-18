@@ -87,12 +87,21 @@ User* supprime_Client(User *liste, int socket_Client){
 }
 
 struct pollfd *supprime_poll(struct pollfd *liste, int index, int nbPoll){
-	for(int i = index-1; i < nbPoll-1; i++){
+	/*pour test 
+	for(int j =0; j<nbPoll; j++){
+		printf("test : %d\n", liste[j].fd);
+	}
+	*/
+	for(int i = index; i <= nbPoll-1; i++){
 		//on part de index-1 car le tableau commence à 0
 		liste[i] = liste[i+1];
 	}
-	liste = (struct pollfd*) realloc(liste, nbPoll-1);
 	
+	/*pour test
+	for(int j =0; j<nbPoll; j++){
+		printf("test : %d\n", liste[j].fd);
+	}
+	*/
 	return liste;
 }
 
@@ -156,8 +165,9 @@ struct pollfd *reception_message(struct pollfd *poll_message, int *nbClient, Use
 	memset(messageRecu, 0x00, LG_MESSAGE*sizeof(char));
 
 	for(int i=0; i != *nbClient +1; i++){
-
+		
 		if( poll(&poll_message[i], 1, 100) == 1 ){
+			printf("check\n");
 			//affiche_liste(*liste);
 			lus = read(poll_message[i].fd, messageRecu, LG_MESSAGE*sizeof(char)); // ici appel bloquant
 			switch(lus)
@@ -312,9 +322,10 @@ int main(int nbArgs, char *args[]){
 			nbClient +=1 ;
 			poll_message = (struct pollfd*) realloc(poll_message, nbClient);
 			
-			poll_message[nbClient].fd = parcour->socketClient;
-			poll_message[nbClient].events = POLLIN;	
+			poll_message[nbClient-1].fd = parcour->socketClient;
+			poll_message[nbClient-1].events = POLLIN;	
 			
+			printf("%d\n", parcour->socketClient);
 			free(parcour);	//problème avec le free(parcour) parce que ca free tete_liste aussi, mais si on l'enleve ca foire				
 		}
 		
