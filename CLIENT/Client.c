@@ -97,8 +97,6 @@ int main(int nbArgs, char *args[])
 	
 //--- Début de l’étape n°4 :
 	// Initialise à 0 les messages
-	memset(messageEnvoi, 0x00, LG_MESSAGE*sizeof(char));
-	memset(messageRecu, 0x00, LG_MESSAGE*sizeof(char));
 	
 	// Initialise poll
 	struct pollfd poll_message;
@@ -111,6 +109,9 @@ int main(int nbArgs, char *args[])
 	// poll
 	while(1)
 	{	
+		memset(messageEnvoi, 0x00, LG_MESSAGE*sizeof(char));
+		memset(messageRecu, 0x00, LG_MESSAGE*sizeof(char));
+		
 		if( poll(&poll_message, 1, 100) == 1){
 
 			read(0, messageEnvoi, LG_MESSAGE*sizeof(char));
