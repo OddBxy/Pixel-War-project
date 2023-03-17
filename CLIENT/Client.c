@@ -10,7 +10,7 @@
 
 #include <poll.h>
 #define PORT IPPORT_USERRESERVED // = 5000
-#define LG_MESSAGE 256
+#define LG_MESSAGE 10000
 
 #define parametre_PORT "-p"
 #define parametre_IP "-i"
@@ -19,6 +19,76 @@ typedef struct Parametre{
 	int PORT;
 	char* IP;
 }Parametre;
+
+int saisieInt(int* i, int min, int max, int plage)
+{
+    int invalide = 1;
+    /* 
+     * Il faut toujours vérifier la validiter d'un pointeur avant de s'en servir
+     */
+    if (NULL == i)
+    {
+        puts("Pointeur invalide dans la fonction saisieInt");
+        /* Appel invalide */
+        return EXIT_FAILURE;
+    }
+
+    /* Boucle de contrôle de la validité de la saisie de l'utilisateur */
+    do
+    {
+        /*
+         * Collecte de la saisie de l'utilisateur au format entier (%d), stocké
+         * dans le pointeur fourni en argument. Comme c'est un pointeur, il est
+         * inutile de faire précéder le nom de la variable par le caractère &.
+         */
+        if (0 == scanf("%d", i))
+        {
+            /* Elimination des caractères invalides */
+            while (getc(stdin) != '\n');
+            /* Indication à l'utilisateur */
+            puts("Saisie invalide, caractère(s) non valide(s)");
+            /* Nouvelle demande de saisie */
+            continue;
+        }
+
+        /* Contrôle des bornes */
+        if (plage && (*i < min || *i > max))
+        {
+            puts("Saisie invalide, non compris dans la page de valeurs");
+            invalide = 1;
+        }
+        else if (!plage && *i != min && *i != max)
+        {
+            puts("Saisie invalide, doit être égal à l'une des deux valeurs");
+            invalide = 1;
+        }
+        else
+        {
+            invalide = 0;
+        }
+    }
+    while (invalide);
+
+    /* Tout est OK */
+    return EXIT_SUCCESS;
+}
+
+int ecritMess (char *messageEnvoi, int descripteurSocket, int ecrits) {
+	ecrits = write(descripteurSocket, messageEnvoi, strlen(messageEnvoi)); // message à TAILLE variable
+	switch(ecrits)
+	{
+		case -1 : /* une erreur ! */
+			perror("write");
+			close(descripteurSocket);
+			exit(-3);
+		case 0 : /* la socket est fermée */
+			fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
+			close(descripteurSocket);
+		return 0;
+		default: /* envoi de n octets */
+			printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+	}
+}
 
 Parametre parametrage(int nbArgs, char *args[]){
 
@@ -47,13 +117,28 @@ Parametre parametrage(int nbArgs, char *args[]){
 	return parametre;
 }
 
+void menu() {
+
+	puts("\t\t ╔═════════════════════════════════════╗");
+	puts("\t\t ║          Commande au choix          ║");
+	puts("\t\t ╠═════════════════════════════════════╣");
+	puts("\t\t ║  1 - Afficher la matrice            ║");
+	puts("\t\t ║  2 - Afficher la taille             ║");
+	puts("\t\t ║  3 - Afficher les pix/min           ║");
+	puts("\t\t ║  4 - Version du protocole           ║");
+	puts("\t\t ║  5 - Temps d'attente                ║");
+	puts("\t\t ║  6 - Mettre un pixel                ║");
+	puts("\t\t ║  0 - Quitter                        ║");
+	puts("\t\t ╚═════════════════════════════════════╝");
+}
+
 int main(int nbArgs, char *args[])
 {
 	/*recupère les paramètres pour initialiser le client*/
 	Parametre parametres;
 	parametres = parametrage(nbArgs, args);
-	printf("%d\n", parametres.PORT);
-	printf("%s\n", parametres.IP);
+	printf("PORT : %d\n", parametres.PORT);
+	printf("IP : %s\n", parametres.IP);
 	
 	int descripteurSocket;
 	
@@ -64,6 +149,7 @@ int main(int nbArgs, char *args[])
 	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	int ecrits, lus; /* nb d’octets ecrits et lus */
 	int retour;
+	
 	
 	// Crée un socket de communication
 	descripteurSocket = socket(PF_INET, SOCK_STREAM, 0);
@@ -97,38 +183,70 @@ int main(int nbArgs, char *args[])
 	
 //--- Début de l’étape n°4 :
 	// Initialise à 0 les messages
-	
+
 	// Initialise poll
 	struct pollfd poll_message;
 	memset(&poll_message, 0, sizeof(poll_message));
 	poll_message.fd = 0;
 	poll_message.events = POLLIN; 
 	
+	menu();
+	printf("Faites votre choix (0 à 6):\n");
+	
 	// Envoie un message au serveur
 	
 	// poll
 	while(1)
-	{	
+	{
 		memset(messageEnvoi, 0x00, LG_MESSAGE*sizeof(char));
 		memset(messageRecu, 0x00, LG_MESSAGE*sizeof(char));
-		
+	
 		if( poll(&poll_message, 1, 100) == 1){
+		
+			int c = 0;
+			saisieInt(&c, 0, 6, 1);
+			//scanf("Faites votre choix (0 à 6): %d\n", &c);
+			//read(0, &c, sizeof(int));
+			//char choix[255];
+			//read(0, choix, sizeof(int));
 
-			read(0, messageEnvoi, LG_MESSAGE*sizeof(char));
-			ecrits = write(descripteurSocket, messageEnvoi, strlen(messageEnvoi)); // message à TAILLE variable
-			switch(ecrits)
-			{
-				case -1 : /* une erreur ! */
-					perror("write");
-					close(descripteurSocket);
-					exit(-3);
-				case 0 : /* la socket est fermée */
-					fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
-					close(descripteurSocket);
-				return 0;
-				default: /* envoi de n octets */
-					printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+			//int c = atoi(choix);
+			
+
+			switch(c){
+				case 1:
+					ecritMess("/getMatrix", descripteurSocket, ecrits);
+					break;
+				
+				case 2:
+					ecritMess("/getSize", descripteurSocket, ecrits);
+					printf("Faites votre choix (0 à 6):\n");
+					break;
+					
+				case 3:
+					ecritMess("/getLimits", descripteurSocket, ecrits);
+					break;
+					
+				case 4:
+					ecritMess("/getVersion", descripteurSocket, ecrits);
+					break;
+					
+				case 5:
+					ecritMess("/getWaitTime", descripteurSocket, ecrits);
+					break;
+					
+				case 6:
+					ecritMess("/setPixel", descripteurSocket, ecrits);
+					break;
+					
+				default:
+					exit(1);
+					break;
 			}
+			system("clear");
+			menu();
+			
+
 			/* Reception des données du serveur */
 			lus = read(descripteurSocket, messageRecu, LG_MESSAGE*sizeof(char)); /* attend un message
 			de TAILLE fixe */
