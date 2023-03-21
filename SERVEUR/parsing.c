@@ -17,6 +17,7 @@ int traite_message(char *message, struct pollfd poll, Parametre parametres, char
 		/*RECUPERATION DES PARAMETRES*/
 		char *position = strtok(NULL, " ");
 		char *color = strtok(NULL, " ");
+		color = strtok(color, "\n");
 		if(position == NULL || color == NULL){
 			sprintf(messageEnvoi, "10 : Bad Command\n");
 			ecrit = write(poll.fd, messageEnvoi, strlen(messageEnvoi));
