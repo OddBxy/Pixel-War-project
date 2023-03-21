@@ -73,8 +73,8 @@ int saisieInt(int* i, int min, int max, int plage)
     return EXIT_SUCCESS;
 }
 
-int ecritMess (char *messageEnvoi, int descripteurSocket, int ecrits) {
-	ecrits = write(descripteurSocket, messageEnvoi, strlen(messageEnvoi)); // message à TAILLE variable
+void ecritMess (char *messageEnvoi, int descripteurSocket) {
+	int ecrits = write(descripteurSocket, messageEnvoi, strlen(messageEnvoi)); // message à TAILLE variable
 	switch(ecrits)
 	{
 		case -1 : /* une erreur ! */
@@ -84,9 +84,35 @@ int ecritMess (char *messageEnvoi, int descripteurSocket, int ecrits) {
 		case 0 : /* la socket est fermée */
 			fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
 			close(descripteurSocket);
-		return 0;
+			exit(0);
 		default: /* envoi de n octets */
-			printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+			break;
+	}
+}
+
+
+void recup_size(char **dimension, int descripteurSocket){
+	ecritMess( "/getSize", descripteurSocket);
+	
+	char messageRecu[LG_MESSAGE];
+	memset(messageRecu, 0x00, LG_MESSAGE*sizeof(char));
+	
+	int lus = read(descripteurSocket, messageRecu, LG_MESSAGE*sizeof(char)); /* attend un message de TAILLE fixe */
+	switch(lus)
+	{
+		case -1 : /* une erreur ! */
+			perror("read");
+			close(descripteurSocket);
+			exit(-4);
+		case 0 : /* la socket est fermée */
+			fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
+			close(descripteurSocket);
+			exit(0);
+		default: /* réception de n octets */
+			dimension[0] = strtok(messageRecu, "x");
+			dimension[1] = strtok(NULL, "x");
+			dimension[1] = strtok(dimension[1], "\n");
+			
 	}
 }
 
@@ -146,7 +172,6 @@ int main(int nbArgs, char *args[])
 	socklen_t longueurAdresse;
 	
 	char messageEnvoi[LG_MESSAGE]; /* le message de la couche Application ! */
-	char messageRecu[LG_MESSAGE]; /* le message de la couche Application ! */
 	int ecrits, lus; /* nb d’octets ecrits et lus */
 	int retour;
 	
@@ -178,12 +203,12 @@ int main(int nbArgs, char *args[])
 		close(descripteurSocket); // On ferme la ressource avant de quitter
 		exit(-2); // On sort en indiquant un code erreur
 	}
-//--- Fin de l’étape n°2 !
+
 	printf("Connexion au serveur réussie avec succès !\n");
 	
-//--- Début de l’étape n°4 :
-	// Initialise à 0 les messages
-
+	char *dimension[] = {"", ""};
+	recup_size(dimension, descripteurSocket);
+	
 	// Initialise poll
 	struct pollfd poll_message;
 	memset(&poll_message, 0, sizeof(poll_message));
@@ -192,51 +217,43 @@ int main(int nbArgs, char *args[])
 	
 	menu();
 	printf("Faites votre choix (0 à 6):\n");
-	
-	// Envoie un message au serveur
-	
+		
 	// poll
 	while(1)
 	{
 		memset(messageEnvoi, 0x00, LG_MESSAGE*sizeof(char));
-		memset(messageRecu, 0x00, LG_MESSAGE*sizeof(char));
 	
 		if( poll(&poll_message, 1, 100) == 1){
-		
+			
+			char *messageRecu; /* le message de la couche Application ! */
 			int c = 0;
 			saisieInt(&c, 0, 6, 1);
-			//scanf("Faites votre choix (0 à 6): %d\n", &c);
-			//read(0, &c, sizeof(int));
-			//char choix[255];
-			//read(0, choix, sizeof(int));
 
-			//int c = atoi(choix);
-			
 
 			switch(c){
 				case 1:
-					ecritMess("/getMatrix", descripteurSocket, ecrits);
+					ecritMess("/getMatrix", descripteurSocket);
 					break;
 				
 				case 2:
-					ecritMess("/getSize", descripteurSocket, ecrits);
+					ecritMess("/getSize", descripteurSocket);
 					printf("Faites votre choix (0 à 6):\n");
 					break;
 					
 				case 3:
-					ecritMess("/getLimits", descripteurSocket, ecrits);
+					ecritMess("/getLimits", descripteurSocket);
 					break;
 					
 				case 4:
-					ecritMess("/getVersion", descripteurSocket, ecrits);
+					ecritMess("/getVersion", descripteurSocket);
 					break;
 					
 				case 5:
-					ecritMess("/getWaitTime", descripteurSocket, ecrits);
+					ecritMess("/getWaitTime", descripteurSocket);
 					break;
 					
 				case 6:
-					ecritMess("/setPixel", descripteurSocket, ecrits);
+					ecritMess("/setPixel", descripteurSocket);
 					break;
 					
 				default:
@@ -246,10 +263,15 @@ int main(int nbArgs, char *args[])
 			system("clear");
 			menu();
 			
-
 			/* Reception des données du serveur */
-			lus = read(descripteurSocket, messageRecu, LG_MESSAGE*sizeof(char)); /* attend un message
-			de TAILLE fixe */
+			if(c == 1){
+				messageRecu = (char *) malloc(atoi(dimension[0])*atoi(dimension[1])*LG_MESSAGE*sizeof(char));
+				lus = read(descripteurSocket, messageRecu, atoi(dimension[0])*atoi(dimension[1])*256*sizeof(char));
+			}
+			else{
+				messageRecu = (char *) malloc(LG_MESSAGE*sizeof(char));
+				lus = read(descripteurSocket, messageRecu, 256*sizeof(char));
+			}
 			switch(lus)
 			{
 				case -1 : /* une erreur ! */
@@ -263,6 +285,7 @@ int main(int nbArgs, char *args[])
 				default: /* réception de n octets */
 					printf("Message reçu du serveur : %s (%d octets)\n\n", messageRecu, lus);
 			}
+			strcpy(messageRecu, "\0");
 		}
 	}
 	
