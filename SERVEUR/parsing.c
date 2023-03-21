@@ -75,7 +75,7 @@ int traite_message(char *message, struct pollfd poll, Parametre parametres, char
 		ecrit = write(poll.fd, messageEnvoi, strlen(messageEnvoi));
 	}
 	else if(strncmp(split_string, "/getVersion", 11) == 0){
-		sprintf(messageEnvoi, "00 : ok\n");
+		sprintf(messageEnvoi, "Version : 1.0\n");
 		ecrit = write(poll.fd, messageEnvoi, strlen(messageEnvoi));
 	}
 	else if(strncmp(split_string, "/getLimits", 10) == 0){
