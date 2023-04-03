@@ -221,7 +221,6 @@ int main(int nbArgs, char *args[])
 				
 				case 2:
 					ecritMess("/getSize", descripteurSocket);
-					printf("Faites votre choix (0 à 6):\n");
 					break;
 					
 				case 3:
